@@ -60,7 +60,7 @@ app.use(function(request, response, next) {
 
 // 500 error handling
 app.use(function(err, request, response, next) {
-    console.error(err.stack)
+    console.error(err.stack);
     response.status(500).redirect("/500");
 });
 
