@@ -1,9 +1,9 @@
 <% include ../layout/header %>
 
 <div class="container">
-    <div class="row"></div>
-        <h1 style="text-align: center; margin-top: 100px">Edit <%= campground.name %></h1>
-        <form action="/campgrounds/<%= campground.id %>?_method=PUT" method="POST" style="width: 30%; margin: 30px auto;">
+    <h1 style="text-align: center; margin-top: 10px">Edit <%= campground.name %></h1>
+    <div style="width: 30%; margin: 30px auto;">
+        <form action="/campgrounds/<%= campground.id %>?_method=PUT" method="POST" enctype="multipart/form-data">
             <div class="form-group">
                 <input type="text" class="form-control" value="<%= campground.name %>" name="campground[name]">
             </div>
@@ -23,4 +23,5 @@
         </form>
     </div>
 </div>
+
 <% include ../layout/footer %>

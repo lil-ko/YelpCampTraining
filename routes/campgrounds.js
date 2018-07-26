@@ -2,6 +2,7 @@ var express = require("express");
 var router = express.Router();
 var Campground = require("../models/campground");
 var middleware = require("../middleware");
+var async = require("async");
 var multer = require("multer");
 var config = require("../../config");
 var storage = multer.diskStorage({
@@ -87,6 +88,7 @@ router.get("/new", middleware.isLoggedIn, function(request, response) {
 
 // CREATE - add new ground to dataBase
 router.post("/", middleware.isLoggedIn, upload.single("image"), function(request, response) {
+
     cloudinary.uploader.upload(request.file.path, function(result) {
         // add cloudinary image url to the campground object
         request.body.campground.image = {
@@ -108,6 +110,7 @@ router.post("/", middleware.isLoggedIn, upload.single("image"), function(request
             response.redirect("/campgrounds/" + newlyCreated.id);
         });
     });
+    console.log(request.body.image);
 });
 
 
@@ -133,20 +136,71 @@ router.get("/:id/edit", middleware.checkCampgroundOwnership, function(request, r
 });
 
 // UPDATE - save edited compground to database
-router.put("/:id", middleware.checkCampgroundOwnership, function(request, response) {
-    console.log(request.body.campground);
-    Campground.findByIdAndUpdate(request.params.id, request.body.campground, function(err, updatedGround) {
-        response.redirect("/campgrounds/" + request.params.id);
-    });
+router.put("/:id", middleware.checkCampgroundOwnership, upload.single("image"), function(request, response) {
+    console.log("request.params.id ==>> " + request.params.id);
+
+
+    if (request.file) {
+        // delete image from cloud
+        cloudDelete(request.params.id);
+        console.log("0===================");
+        cloudinary.uploader.upload(request.file.path, function(result) {
+            // add cloudinary image url to the campground object
+            request.body.campground.image = {
+                url: result.secure_url,
+                public_id: result.public_id
+            };
+            Campground.findByIdAndUpdate(request.params.id, request.body.campground, function(err) {
+                response.redirect("/campgrounds/" + request.params.id);
+            });
+            console.log(request.body.campground.image);
+            console.log("1===================");
+        });
+    }
+    else {
+        console.log("i'm out of if");
+        console.log("3===================");
+        Campground.findByIdAndUpdate(request.params.id, request.body.campground, function(err) {
+            response.redirect("/campgrounds/" + request.params.id);
+        });
+    }
+
 });
 
 // DESTROY - delete existing compground from database
-router.delete("/:id", middleware.checkCampgroundOwnership, function(request, response) {
-    // Delete image from cloudinary
-    Campground.findById(request.params.id, function(err, foundGround) {
+router.delete("/:id", middleware.checkCampgroundOwnership, function(request, response, next) {
+    async.waterfall([
+        function(done) {
+            cloudDelete(request.params.id);
+            done();
+        },
+        function(done) {
+            // Delete campground from db  
+            Campground.findByIdAndRemove(request.params.id, function(err, foundGround) {
+                if (err || !foundGround) {
+                    console.log(err);
+                }
+                else {
+                    done(err);
+                }
+            });
+        }
+    ], function(err) {
+        if (err) return next(err);
+        response.redirect("/campgrounds");
+    });
+});
+
+// safeguard against regex DDoS attack
+function escapeRegex(text) {
+    return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+}
+
+// Delete image from cloudinary
+function cloudDelete(id) {
+    Campground.findById(id, function(err, foundGround) {
         if (err || !foundGround) {
-            request.flash("error", "Campground not found");
-            response.redirect("back");
+            console.log("Campground not found");
         }
         else {
             cloudinary.uploader.destroy(foundGround.image.public_id, function(err, result) {
@@ -154,22 +208,6 @@ router.delete("/:id", middleware.checkCampgroundOwnership, function(request, res
             });
         }
     });
-    // Delete campground from db  
-    Campground.findByIdAndRemove(request.params.id, function(err, foundGround) {
-        if (err || !foundGround) {
-            request.flash("error", "Campground not found");
-            response.redirect("back");
-        }
-        else {
-            response.redirect("/campgrounds");
-        }
-    });
-
-});
-
-// safeguard against regex DDoS attack
-function escapeRegex(text) {
-    return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
 }
 
 module.exports = router;
