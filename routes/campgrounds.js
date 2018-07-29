@@ -137,13 +137,9 @@ router.get("/:id/edit", middleware.checkCampgroundOwnership, function(request, r
 
 // UPDATE - save edited compground to database
 router.put("/:id", middleware.checkCampgroundOwnership, upload.single("image"), function(request, response) {
-    console.log("request.params.id ==>> " + request.params.id);
-
-
     if (request.file) {
         // delete image from cloud
         cloudDelete(request.params.id);
-        console.log("0===================");
         cloudinary.uploader.upload(request.file.path, function(result) {
             // add cloudinary image url to the campground object
             request.body.campground.image = {
@@ -153,18 +149,13 @@ router.put("/:id", middleware.checkCampgroundOwnership, upload.single("image"), 
             Campground.findByIdAndUpdate(request.params.id, request.body.campground, function(err) {
                 response.redirect("/campgrounds/" + request.params.id);
             });
-            console.log(request.body.campground.image);
-            console.log("1===================");
         });
     }
     else {
-        console.log("i'm out of if");
-        console.log("3===================");
         Campground.findByIdAndUpdate(request.params.id, request.body.campground, function(err) {
             response.redirect("/campgrounds/" + request.params.id);
         });
     }
-
 });
 
 // DESTROY - delete existing compground from database
